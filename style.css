@@ -1,0 +1,85 @@
+:root {
+    --color-bg-100: #ffffff;
+    --color-bg-300: #f2f5f7;
+    --color-bg-500: #f5f7fa;
+    --color-bg-700: #eceff2;
+    --color-bg-900: #dfe0e3;
+
+    --color-blue-500: #578abc;
+    --color-blue-900: hsl(210, 48%, 43%);
+
+    --color-natural-500: #2b3137;
+    --color-natural-900: #24292e;
+
+    --color-icon: #24292e;
+
+    --width-max-desktop: 960px;
+    --color-text-light-900: #fafbfc;
+    --color-text-light-500: rgba(255,255,255,.6);
+    --icon-height: 1rem;
+    --toolbar-height: 6rem;
+    background-color: var(--color-bg-100);
+    font-size: 12px;
+    font-family: 'Roboto';
+    display: flex;
+    justify-content: center;
+    overflow-x: hidden;
+    width: 100vw;
+    height: 100vh;
+}
+
+svg {
+    width: 100%;
+}
+
+
+
+.body-wrap {
+    box-sizing: border-box;
+    width: 100vw;
+    margin: 2rem;
+    /* border: 2px solid red; */
+    background-color: var(--color-bg-500);
+    padding: 1rem;
+    border-radius: .25rem;
+}
+
+.menu-main {
+    margin: 1rem;
+    /* width: 80%; */
+    /* border: 2px solid var(--color-natural-500); */
+    /* padding: 1rem; */
+}
+
+li {
+    list-style: none;
+}
+
+.menu-wrap {
+    margin-top: .25rem;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: nowrap;
+    background-color: var(--color-bg-900);
+    padding: 1rem;
+}
+
+.menu-item {
+    /* margin-top: .25rem; */
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.toggle-wrap {
+    width: 2rem;
+}
+
+.menu-item-label {
+    margin-left: 1rem;
+    font-size: 2rem;
+    cursor: default;
+    user-select: none;
+}
