@@ -3,6 +3,7 @@ window.Event = new Vue();
 Vue.component('sandbox', {
   template: `
     <div class="body-wrap">
+      <event-manager />
       <menu-list :list="tree" />
     </div>
   `,
@@ -75,56 +76,122 @@ Vue.component('sandbox', {
           children: []
         },
       ],
+      selection: [],
       msg: 'hello world',
       target: {},
       menuList: [],
     }
   },
   mounted() {
-    Event.$on('checkSelection', this.getSelection);
+    Event.$on('checkSelection', this.checkSelection);
+    Event.$on('navigate', this.navigatorControl);
     this.updateMenuList();
   },
   methods: {
-    updateMenuList() {
-      this.menuList = document.querySelectorAll('.menu-wrap');;
-    },
-    findSelectionByElement() {
-      console.log('Rendered elements are:');
-      console.log(this.menuList);
-      console.log('Full list is:')
-      console.log(this.tree);
-      // let result = this.findEltInList(this.menuList, )
-    },
-    getSelection() {
+    navigatorControl(msg) {
       this.updateMenuList();
-      // let result = this.findSelection(this.tree);
-      let eltResult = this.findSelectionByElement();
-      // console.log(result);
+      this.target = this.getSelection();
+      if (/right|left/i.test(msg)) {
+        if (/right/i.test(msg))
+          this.navigateFold(true);
+        else
+          this.navigateFold(false);
+      } else {
+        if (/up/i.test(msg))
+          this.navigateNS(-1);
+        else
+          this.navigateNS(1);
+      }
     },
-    findEltInList(list, elt) {
+    navigateFold(val) {
+      if (this.$root.selection.children.length)
+        this.$root.selection.open = val;
+    },
+    setSelectionByElt(list, elt) {
+      console.log(`Chosen elt:`)
+      console.log(elt);
       for (let i = 0; i < list.length; i++) {
-        const branch = list[i];
-        if (branch.selected) {
-          return branch;
+        const item = list[i];
+        if (item.elt == elt) {
+          item.selected = true;
         } else {
-          if (branch.children.length) {
-            this.findSelection(branch.children);
-          }
+          if (item.children.length)
+            this.setSelectionByElt(item.children, elt)
+          item.selected = false;
         }
       }
+    },
+    navigateNS(val) {
+      let index = this.findIndexOfSelection();
+      let result = index + val;
+      if (!this.$root.addToSelection) 
+        Event.$emit('clearSelection');
+      console.log(`Index is ${index} + ${val} = ${result}`);
+      if ((index + val >= 0) && (index + val < this.menuList.length)) {
+        console.log(`Moving from ${index} to ${result}`);
+        this.setSelectionByElt(this.tree, this.menuList[result])
+      } else {
+        if (index + val >= 0) {
+          console.log('Resetting to top')
+          this.setSelectionByElt(this.tree, this.menuList[0])
+        } else {
+          console.log('Resetting to bottom')
+          this.setSelectionByElt(this.tree, this.menuList[this.menuList.length - 1])
+        }
+      }
+    },
+    updateMenuList() { this.menuList = document.querySelectorAll('.menu-wrap'); },
+    findIndexOfSelection() {
+      this.updateMenuList();
+      for (let i = 0; i < this.menuList.length; i++) {
+        const elt = this.menuList[i];
+        if (elt === this.$root.selection.elt)
+          return i;
+      }
+    },
+    checkSelection() {
+      let selection = this.getSelection();
+      console.log(`Checked selection is ${selection.name}`);
+    },
+    getSelection() {
+      return this.findSelection(this.tree);
     },
     findSelection(list) {
       for (let i = 0; i < list.length; i++) {
         const branch = list[i];
         if (branch.selected) {
+          // if (this.$)
+          this.$root.selection = branch;
           return branch;
         } else {
-          if (branch.children.length) {
+          if ((branch.open) && (branch.children.length))
             this.findSelection(branch.children);
-          }
         }
       }
     }
+  }
+})
+
+Vue.component('event-manager', {
+  template: `
+    <div 
+      v-keydown-outside="onKeyDownOutside"
+      v-keyup-outside="onKeyUpOutside">
+    </div>
+  `,
+  methods: {
+    onKeyDownOutside(evt) {
+      if (/arrow/i.test(evt.key)) {
+        if (evt.shiftKey)
+          this.$root.addToSelection = true;
+        else
+          this.$root.addToSelection = false;
+        Event.$emit('navigate', evt.key.substring(5, evt.key.length))
+      }
+    },
+    onKeyUpOutside(evt) {
+      // console.log(evt)
+    },
   }
 })
 
@@ -174,8 +241,8 @@ Vue.component('menu-item', {
     onSelection(e) {
       // console.log(e);
       if ((!e.shiftKey) && (!this.model.selected)) {
-        Event.$emit('clearSelection');
-        console.log(`${this.model.name} was selected`);
+        if (!this.$root.addToSelection)
+          Event.$emit('clearSelection');
         this.model.selected = true;
       }
       Event.$emit('checkSelection');
@@ -187,8 +254,8 @@ Vue.component('menu-item', {
         return `border: 2px solid transparent;`
     },
     toggleOpen() {
-      console.log('Clicked')
-      this.model.open = !this.model.open;
+      if (this.model.children.length)
+        this.model.open = !this.model.open;
     },
     buildDepth() {
       let mirror = [];
@@ -211,9 +278,6 @@ Vue.component('menu-item-children', {
       </menu-item>
     </div>
   `,
-  mounted() {
-    console.log(this.list)
-  }
 })
 
 Vue.component('menu-tab', {
@@ -249,17 +313,15 @@ Vue.component('toggle-icon', {
   },
   methods: {
     getSVGStyle() { return `width: ${this.$root.getCSS('icon-height')};${this.iconColor};`; },
-
   }
 })
 
 var app = new Vue({
   el: '#app',
   data: {
-    msg: 'hello',
-  },
-  mounted() {
-    console.log(this.msg);
+    addToSelection: false,
+    selection: {},
+    selectionList: [],
   },
   methods: {
     getCSS(prop) { return window.getComputedStyle(document.documentElement).getPropertyValue('--' + prop); },
