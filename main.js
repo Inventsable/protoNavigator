@@ -90,7 +90,7 @@ Vue.component('sandbox', {
   methods: {
     navigatorControl(msg) {
       this.updateMenuList();
-      this.target = this.getSelection();
+      this.getSelection();
       if (/right|left/i.test(msg)) {
         if (/right/i.test(msg))
           this.navigateFold(true);
@@ -104,39 +104,46 @@ Vue.component('sandbox', {
       }
     },
     navigateFold(val) {
-      if (this.$root.selection.children.length)
-        this.$root.selection.open = val;
+      // If this is a folder and has children, fold or unfold it
+      if (this.$root.selectionTarget.children.length)
+        this.$root.selectionTarget.open = val;
     },
-    setSelectionByElt(list, elt) {
-      console.log(`Chosen elt:`)
-      console.log(elt);
+    navigateNS(val) {
+      // Navigate the chronological order of currently displayed menu-items
+      let index = this.findIndexOfSelection();
+      let result = index + val;
+      let isAdding = this.$root.isAddToSelection;
+      if (!isAdding) 
+        Event.$emit('clearSelection');
+      if ((index + val >= 0) && (index + val < this.menuList.length)) {
+        // Standard movement within list
+        this.setSelectionByElt(this.tree, this.menuList[result], isAdding);
+      } else {
+        if (index + val >= 0) {
+          // Reset to top of list
+          this.setSelectionByElt(this.tree, this.menuList[0], isAdding);
+        } else {
+          // Reset to bottom of list
+          this.setSelectionByElt(this.tree, this.menuList[this.menuList.length - 1], isAdding);
+        }
+      }
+    },
+    setSelectionByElt(list, elt, isAdding=false) {
       for (let i = 0; i < list.length; i++) {
         const item = list[i];
         if (item.elt == elt) {
           item.selected = true;
+          if (isAdding) {
+            console.log(isAdding)
+            // this.$root.addToSelection(item);
+          }
+          else
+            this.$root.selectionList = [item];
         } else {
+          if (!isAdding)
+            item.selected = false;
           if (item.children.length)
-            this.setSelectionByElt(item.children, elt)
-          item.selected = false;
-        }
-      }
-    },
-    navigateNS(val) {
-      let index = this.findIndexOfSelection();
-      let result = index + val;
-      if (!this.$root.addToSelection) 
-        Event.$emit('clearSelection');
-      console.log(`Index is ${index} + ${val} = ${result}`);
-      if ((index + val >= 0) && (index + val < this.menuList.length)) {
-        console.log(`Moving from ${index} to ${result}`);
-        this.setSelectionByElt(this.tree, this.menuList[result])
-      } else {
-        if (index + val >= 0) {
-          console.log('Resetting to top')
-          this.setSelectionByElt(this.tree, this.menuList[0])
-        } else {
-          console.log('Resetting to bottom')
-          this.setSelectionByElt(this.tree, this.menuList[this.menuList.length - 1])
+            this.setSelectionByElt(item.children, elt, isAdding);
         }
       }
     },
@@ -145,7 +152,7 @@ Vue.component('sandbox', {
       this.updateMenuList();
       for (let i = 0; i < this.menuList.length; i++) {
         const elt = this.menuList[i];
-        if (elt === this.$root.selection.elt)
+        if (elt === this.$root.selectionTarget.elt)
           return i;
       }
     },
@@ -160,8 +167,7 @@ Vue.component('sandbox', {
       for (let i = 0; i < list.length; i++) {
         const branch = list[i];
         if (branch.selected) {
-          // if (this.$)
-          this.$root.selection = branch;
+          this.$root.selectionTarget = branch;
           return branch;
         } else {
           if ((branch.open) && (branch.children.length))
@@ -183,9 +189,9 @@ Vue.component('event-manager', {
     onKeyDownOutside(evt) {
       if (/arrow/i.test(evt.key)) {
         if (evt.shiftKey)
-          this.$root.addToSelection = true;
+          this.$root.isAddToSelection = true;
         else
-          this.$root.addToSelection = false;
+          this.$root.isAddToSelection = false;
         Event.$emit('navigate', evt.key.substring(5, evt.key.length))
       }
     },
@@ -241,7 +247,7 @@ Vue.component('menu-item', {
     onSelection(e) {
       // console.log(e);
       if ((!e.shiftKey) && (!this.model.selected)) {
-        if (!this.$root.addToSelection)
+        if (!this.$root.isAddToSelection)
           Event.$emit('clearSelection');
         this.model.selected = true;
       }
@@ -319,11 +325,34 @@ Vue.component('toggle-icon', {
 var app = new Vue({
   el: '#app',
   data: {
-    addToSelection: false,
+    isAddToSelection: false,
     selection: {},
     selectionList: [],
   },
   methods: {
+    addToSelection(item, side='back', removing=false) {
+      let err = -1;
+      for (let i = this.selectionList.length; i <= 0; i--) {
+        const selected = this.selectionList[i];
+        if (selected == item)
+          err = i;
+      }
+      if (err >= 0) {
+        if (!removing) {
+          console.log('Appending object')
+          if (/bottom|back/i.test(side))
+            this.selectionList.push(item)
+          else
+            this.selectionList.unshift(item)
+        } else {
+          console.log('Removing object')
+          this.selectionList.splice(err, 1);
+        }
+      } else {
+        console.log(`${item.name} was already in selection`);
+      }
+      console.log(this.selectionList);
+    },
     getCSS(prop) { return window.getComputedStyle(document.documentElement).getPropertyValue('--' + prop); },
     setCSS(prop, data) { document.documentElement.style.setProperty('--' + prop, data); },
   }

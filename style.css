@@ -32,11 +32,11 @@ svg {
     width: 100%;
 }
 
-
-
 .body-wrap {
     box-sizing: border-box;
     width: 100vw;
+    display: flex;
+    justify-content: flex-start;
     margin: 2rem;
     /* border: 2px solid red; */
     background-color: var(--color-bg-500);
@@ -46,6 +46,7 @@ svg {
 
 .menu-main {
     margin: 1rem;
+    width: 50rem;
     /* width: 80%; */
     /* border: 2px solid var(--color-natural-500); */
     /* padding: 1rem; */
