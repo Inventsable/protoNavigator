@@ -5,13 +5,14 @@ Vue.component('sandbox', {
     <div class="body-wrap">
       <event-manager />
       <menu-list :list="tree" />
+      <annotation />
     </div>
   `,
   data() {
     return {
       tree: [
         {
-          name: 'Layer 1',
+          name: 'Red',
           type: 'Layer',
           open: false,
           elt: {},
@@ -19,7 +20,7 @@ Vue.component('sandbox', {
           selected: true,
           children: [
             {
-              name: 'Sublayer 1',
+              name: 'Royals',
               type: 'Layer',
               open: false,
               elt: {},
@@ -36,7 +37,7 @@ Vue.component('sandbox', {
                   children: []
                 },
                 {
-                  name: 'Bishop',
+                  name: 'Queen',
                   type: 'Text',
                   open: false,
                   elt: {},
@@ -47,7 +48,7 @@ Vue.component('sandbox', {
               ]
             },
             {
-              name: 'Group Item',
+              name: 'Bishop',
               type: 'Group',
               open: false,
               elt: {},
@@ -56,7 +57,7 @@ Vue.component('sandbox', {
               children: []
             },
             {
-              name: 'Sublayer 3',
+              name: 'Rook',
               type: 'Text',
               open: false,
               elt: {},
@@ -67,7 +68,83 @@ Vue.component('sandbox', {
           ]
         },
         {
-          name: 'Layer 2',
+          name: 'Green',
+          type: 'Layer',
+          open: false,
+          elt: {},
+          depth: 0,
+          selected: false,
+          children: [
+            {
+              name: 'Pawns',
+              type: 'Layer',
+              open: false,
+              elt: {},
+              depth: 1,
+              selected: false,
+              children: [
+                {
+                  name: 'Purple',
+                  type: 'Group',
+                  open: false,
+                  elt: {},
+                  depth: 2,
+                  selected: false,
+                  children: [
+                    {
+                      name: 'Pawn',
+                      type: 'Path',
+                      open: false,
+                      elt: {},
+                      depth: 2,
+                      selected: false,
+                      children: []
+                    },
+                    {
+                      name: 'Pawn',
+                      type: 'Path',
+                      open: false,
+                      elt: {},
+                      depth: 2,
+                      selected: false,
+                      children: []
+                    },
+                  ]
+                },
+                {
+                  name: 'Orange',
+                  type: 'Group',
+                  open: false,
+                  elt: {},
+                  depth: 2,
+                  selected: false,
+                  children: [
+                    {
+                      name: 'Pawn',
+                      type: 'Path',
+                      open: false,
+                      elt: {},
+                      depth: 2,
+                      selected: false,
+                      children: []
+                    },
+                    {
+                      name: 'Pawn',
+                      type: 'Path',
+                      open: false,
+                      elt: {},
+                      depth: 2,
+                      selected: false,
+                      children: []
+                    },
+                  ]
+                },
+              ]
+            },
+          ],
+        },
+        {
+          name: 'Blue',
           type: 'Layer',
           open: false,
           elt: {},
@@ -80,16 +157,22 @@ Vue.component('sandbox', {
       msg: 'hello world',
       target: {},
       menuList: [],
+      findFirst: false,
     }
   },
   mounted() {
     Event.$on('checkSelection', this.checkSelection);
     Event.$on('navigate', this.navigatorControl);
     this.updateMenuList();
+    this.$root.selectionList = [this.tree[0]];
   },
   methods: {
     navigatorControl(msg) {
       this.updateMenuList();
+      if ((this.$root.addToSelection) && (/down/i.test(msg)))
+        this.findFirst = false;
+      else
+        this.findFirst = true;
       this.getSelection();
       if (/right|left/i.test(msg)) {
         if (/right/i.test(msg))
@@ -98,17 +181,77 @@ Vue.component('sandbox', {
           this.navigateFold(false);
       } else {
         if (/up/i.test(msg))
-          this.navigateNS(-1);
+          this.navigateNS(-1, msg);
         else
-          this.navigateNS(1);
+          this.navigateNS(1, msg);
       }
     },
     navigateFold(val) {
       // If this is a folder and has children, fold or unfold it
-      if (this.$root.selectionTarget.children.length)
-        this.$root.selectionTarget.open = val;
+      if (this.$root.selectionTarget.children.length) {
+        if ((!this.$root.selectionTarget.open) && (!val)) {
+          // navigate to parent unless at top-level
+          if (this.$root.selectionTarget.depth > 0) {
+            Event.$emit('updateAnno', `Navigate to parent`);
+            this.navigateToParent();
+          } else {
+            Event.$emit('updateAnno', `Can't navigate higher`);
+          }          
+        } else if ((this.$root.selectionTarget.open) && (val)) {
+          // navigate to first child
+          Event.$emit('updateAnno', `Navigate to first child`);
+          this.setSelectionByElt(this.tree, this.$root.selectionTarget.children[0].elt);
+        } else {
+          // close
+          Event.$emit('updateAnno', `${this.$root.selectionTarget.name} open = ${val}`);
+          this.$root.selectionTarget.open = val;
+        }
+      } else {
+        if (!val) {
+          if (this.$root.selectionTarget.depth > 0)
+            Event.$emit('updateAnno', `Navigate to parent`);
+          else
+            Event.$emit('updateAnno', `Can't navigate higher`);
+          // If this is a child and has depth, navigate to it's parent on Left
+          this.navigateToParent();
+        } else {
+          Event.$emit('updateAnno', `Can't unfold empty layer`);
+        }
+      }
     },
-    navigateNS(val) {
+    navigateToParent() {
+      this.findParentOfElt(this.tree, this.$root.selectionTarget.elt);
+      if (this.$root.selectionParent.name == null) {
+        // console.log(`At root`)
+      } else {
+        Event.$emit('clearSelection');
+        this.setSelectionByElt(this.tree, this.$root.selectionParent.elt);
+      }
+    },
+    findParentOfElt(list, elt) {
+      for (let i = 0; i < list.length; i++) {
+        const item = list[i];
+        if ((item.open) && (item.children.length)) {
+          for (let v = 0; v < item.children.length; v++) {
+            let child = item.children[v];
+            if (child.elt == elt) {
+              if (child.depth > 0) {
+                this.$root.selectionParent = item;
+                return item;
+              } else {
+                this.$root.selectionParent = null;
+                return null;
+              }
+            } else if ((child.children.length) && (child.open)) {
+              this.findParentOfElt(item.children, elt);
+            }
+          }
+        }
+      }
+    },
+    // Something is wrong with Sublayer 1, won't add selection beyond it.
+    // This should deselect objects as you hold shift and target something already in selection
+    navigateNS(val, dir) {
       // Navigate the chronological order of currently displayed menu-items
       let index = this.findIndexOfSelection();
       let result = index + val;
@@ -117,13 +260,19 @@ Vue.component('sandbox', {
         Event.$emit('clearSelection');
       if ((index + val >= 0) && (index + val < this.menuList.length)) {
         // Standard movement within list
+        if (!isAdding)
+          Event.$emit('updateAnno', `Move ${dir} from ${this.$root.selectionTarget.name}`);
         this.setSelectionByElt(this.tree, this.menuList[result], isAdding);
       } else {
         if (index + val >= 0) {
           // Reset to top of list
+          if (!isAdding)
+            Event.$emit('updateAnno', `Reset to top of list`);
           this.setSelectionByElt(this.tree, this.menuList[0], isAdding);
         } else {
           // Reset to bottom of list
+          if (!isAdding)
+            Event.$emit('updateAnno', `Reset to bottom of list`);
           this.setSelectionByElt(this.tree, this.menuList[this.menuList.length - 1], isAdding);
         }
       }
@@ -134,11 +283,12 @@ Vue.component('sandbox', {
         if (item.elt == elt) {
           item.selected = true;
           if (isAdding) {
-            console.log(isAdding)
-            // this.$root.addToSelection(item);
-          }
-          else
+            // console.log(item.name);
+            Event.$emit('updateAnno', `Adding ${item.name} to selection`)
+            this.$root.addToSelection(item, 'back', false);
+          } else {
             this.$root.selectionList = [item];
+          }
         } else {
           if (!isAdding)
             item.selected = false;
@@ -147,43 +297,68 @@ Vue.component('sandbox', {
         }
       }
     },
-    updateMenuList() { this.menuList = document.querySelectorAll('.menu-wrap'); },
     findIndexOfSelection() {
       this.updateMenuList();
       for (let i = 0; i < this.menuList.length; i++) {
         const elt = this.menuList[i];
         if (elt === this.$root.selectionTarget.elt)
-          return i;
+        return i;
       }
     },
+    updateMenuList() { this.menuList = document.querySelectorAll('.menu-wrap'); },
     checkSelection() {
-      let selection = this.getSelection();
-      console.log(`Checked selection is ${selection.name}`);
+      this.getSelection();
+      Event.$emit(`updateAnno`, `Clicked on ${this.$root.selectionTarget.name}`);
     },
-    getSelection() {
-      return this.findSelection(this.tree);
-    },
+    getSelection() { return this.findSelection(this.tree); },
     findSelection(list) {
-      for (let i = 0; i < list.length; i++) {
-        const branch = list[i];
-        if (branch.selected) {
-          this.$root.selectionTarget = branch;
-          return branch;
-        } else {
-          if ((branch.open) && (branch.children.length))
-            this.findSelection(branch.children);
+      // if findFirst, check from top to bottom
+      if (this.findFirst) {
+        for (let i = 0; i < list.length; i++) {
+          const branch = list[i];
+          if (branch.selected) {
+            this.$root.selectionTarget = branch;
+            return branch;
+          } else {
+            if ((branch.open) && (branch.children.length))
+              this.findSelection(branch.children);
+          }
+        }
+      } else {
+        // else check from bottom to top
+        for (let i = list.length - 1; i >= 0; i--) {
+          const branch = list[i];
+          if (branch.selected) {
+            this.$root.selectionTarget = branch;
+            return branch;
+          } else {
+            if ((branch.open) && (branch.children.length))
+              this.findSelection(branch.children);
+          }
         }
       }
     }
   }
 })
 
+Vue.component('annotation', {
+  template: `
+    <div class="anno">
+      <div class="anno-label">
+        {{anno}}
+      </div>
+    </div>
+  `,
+  computed: {
+    anno: function() {
+      return this.$root.annotation;
+    }
+  }
+})
+
 Vue.component('event-manager', {
   template: `
-    <div 
-      v-keydown-outside="onKeyDownOutside"
-      v-keyup-outside="onKeyUpOutside">
-    </div>
+    <div v-keydown-outside="onKeyDownOutside"></div>
   `,
   methods: {
     onKeyDownOutside(evt) {
@@ -194,9 +369,6 @@ Vue.component('event-manager', {
           this.$root.isAddToSelection = false;
         Event.$emit('navigate', evt.key.substring(5, evt.key.length))
       }
-    },
-    onKeyUpOutside(evt) {
-      // console.log(evt)
     },
   }
 })
@@ -210,9 +382,6 @@ Vue.component('menu-list', {
       <menu-item v-for="(menu, index) in list" :key="index" :model="menu" />
     </li>
   `,
-  mounted() {
-    console.log(this.list)
-  }
 })
 
 Vue.component('menu-item', {
@@ -260,8 +429,10 @@ Vue.component('menu-item', {
         return `border: 2px solid transparent;`
     },
     toggleOpen() {
-      if (this.model.children.length)
+      if (this.model.children.length) {
         this.model.open = !this.model.open;
+        Event.$emit('updateAnno', `Manually toggled ${this.$root.selectionTarget.name}`);
+      }
     },
     buildDepth() {
       let mirror = [];
@@ -326,30 +497,39 @@ var app = new Vue({
   el: '#app',
   data: {
     isAddToSelection: false,
-    selection: {},
+    selectionTarget: {},
+    selectionParent: {},
     selectionList: [],
+    annotation: 'Render menu',
+  },
+  mounted() {
+    Event.$on('updateAnno', this.updateAnno);
   },
   methods: {
-    addToSelection(item, side='back', removing=false) {
+    updateAnno(msg) {
+      this.annotation = msg;
+    },
+    addToSelection(item, side, removing) {
+      // side = side||'back';
+      // removing = removing||false;
       let err = -1;
       for (let i = this.selectionList.length; i <= 0; i--) {
+        console.log(i)
         const selected = this.selectionList[i];
-        if (selected == item)
+        if (selected.elt === item.elt)
           err = i;
       }
-      if (err >= 0) {
+      if (err < 0) {
         if (!removing) {
           console.log('Appending object')
           if (/bottom|back/i.test(side))
             this.selectionList.push(item)
           else
             this.selectionList.unshift(item)
-        } else {
-          console.log('Removing object')
-          this.selectionList.splice(err, 1);
         }
       } else {
-        console.log(`${item.name} was already in selection`);
+        console.log('Removing object')
+        this.selectionList.splice(err, 1);
       }
       console.log(this.selectionList);
     },

@@ -20,7 +20,7 @@
     --toolbar-height: 6rem;
     background-color: var(--color-bg-100);
     font-size: 12px;
-    font-family: 'Roboto';
+    font-family: 'Lato';
     display: flex;
     justify-content: center;
     overflow-x: hidden;
@@ -36,6 +36,7 @@ svg {
     box-sizing: border-box;
     width: 100vw;
     display: flex;
+    /* grid-template-columns: 0fr 1fr 1fr; */
     justify-content: flex-start;
     margin: 2rem;
     /* border: 2px solid red; */
@@ -44,9 +45,32 @@ svg {
     border-radius: .25rem;
 }
 
+.anno {
+    box-sizing: border-box;
+    padding: 3rem 2rem 2rem 2rem;
+    display: flex;
+    justify-content: center;
+    user-select: none;
+    width: 30rem;
+    /* border: 2px solid red; */
+}
+
+[class^="anno-"] {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.anno-label {
+    font-size: 2rem;
+}
+.anno-title {
+    font-size: 3rem;
+}
+
 .menu-main {
     margin: 1rem;
-    width: 50rem;
+    width: 30rem;
+    min-width: 20rem;
     /* width: 80%; */
     /* border: 2px solid var(--color-natural-500); */
     /* padding: 1rem; */
