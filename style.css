@@ -5,6 +5,7 @@
     --color-bg-700: #eceff2;
     --color-bg-900: #dfe0e3;
 
+    --color-selection: #578abc;
     --color-blue-500: #578abc;
     --color-blue-900: hsl(210, 48%, 43%);
 
@@ -53,6 +54,12 @@ svg {
     user-select: none;
     width: 30rem;
     /* border: 2px solid red; */
+}
+
+.menu-dragbar {
+    /* width: 100%; */
+    border: 2px solid transparent;
+    height: 0px;
 }
 
 [class^="anno-"] {

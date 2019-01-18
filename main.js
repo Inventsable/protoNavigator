@@ -16,6 +16,7 @@ Vue.component('sandbox', {
           type: 'Layer',
           open: false,
           elt: {},
+          dragbar: {},
           depth: 0,
           selected: true,
           children: [
@@ -24,6 +25,7 @@ Vue.component('sandbox', {
               type: 'Layer',
               open: false,
               elt: {},
+              dragbar: {},
               depth: 1,
               selected: false,
               children: [
@@ -32,6 +34,7 @@ Vue.component('sandbox', {
                   type: 'Group',
                   open: false,
                   elt: {},
+                  dragbar: {},
                   depth: 2,
                   selected: false,
                   children: []
@@ -41,6 +44,7 @@ Vue.component('sandbox', {
                   type: 'Text',
                   open: false,
                   elt: {},
+                  dragbar: {},
                   depth: 2,
                   selected: false,
                   children: []
@@ -52,6 +56,7 @@ Vue.component('sandbox', {
               type: 'Group',
               open: false,
               elt: {},
+              dragbar: {},
               depth: 1,
               selected: false,
               children: []
@@ -61,6 +66,7 @@ Vue.component('sandbox', {
               type: 'Text',
               open: false,
               elt: {},
+              dragbar: {},
               depth: 1,
               selected: false,
               children: []
@@ -72,6 +78,7 @@ Vue.component('sandbox', {
           type: 'Layer',
           open: false,
           elt: {},
+          dragbar: {},
           depth: 0,
           selected: false,
           children: [
@@ -80,6 +87,7 @@ Vue.component('sandbox', {
               type: 'Layer',
               open: false,
               elt: {},
+              dragbar: {},
               depth: 1,
               selected: false,
               children: [
@@ -88,6 +96,7 @@ Vue.component('sandbox', {
                   type: 'Group',
                   open: false,
                   elt: {},
+                  dragbar: {},
                   depth: 2,
                   selected: false,
                   children: [
@@ -96,6 +105,7 @@ Vue.component('sandbox', {
                       type: 'Path',
                       open: false,
                       elt: {},
+                      dragbar: {},
                       depth: 2,
                       selected: false,
                       children: []
@@ -105,6 +115,7 @@ Vue.component('sandbox', {
                       type: 'Path',
                       open: false,
                       elt: {},
+                      dragbar: {},
                       depth: 2,
                       selected: false,
                       children: []
@@ -116,6 +127,7 @@ Vue.component('sandbox', {
                   type: 'Group',
                   open: false,
                   elt: {},
+                  dragbar: {},
                   depth: 2,
                   selected: false,
                   children: [
@@ -124,6 +136,7 @@ Vue.component('sandbox', {
                       type: 'Path',
                       open: false,
                       elt: {},
+                      dragbar: {},
                       depth: 2,
                       selected: false,
                       children: []
@@ -133,6 +146,7 @@ Vue.component('sandbox', {
                       type: 'Path',
                       open: false,
                       elt: {},
+                      dragbar: {},
                       depth: 2,
                       selected: false,
                       children: []
@@ -148,6 +162,7 @@ Vue.component('sandbox', {
           type: 'Layer',
           open: false,
           elt: {},
+          dragbar: {},
           depth: 0,
           selected: false,
           children: []
@@ -157,16 +172,58 @@ Vue.component('sandbox', {
       msg: 'hello world',
       target: {},
       menuList: [],
+      // dragbarList: [],
       findFirst: false,
     }
   },
   mounted() {
     Event.$on('checkSelection', this.checkSelection);
     Event.$on('navigate', this.navigatorControl);
+    Event.$on('dropSibling', this.dropSibling);
     this.updateMenuList();
     this.$root.selectionList = [this.tree[0]];
   },
   methods: {
+    dropSibling() {
+      if (this.$root.selectionDrag !== this.$root.selectionParentDrag) {
+        console.log(`Dropping ${this.$root.selectionDrag.name} below ${this.$root.selectionParentDrag.name}`)
+        console.log(this.$root.selectionParentDrag.dragbar);
+        let result = this.findDragBarInMenu(this.tree, this.$root.selectionParentDrag.dragbar);
+        console.log(result);
+        console.log(`New index is ${this.$root.dragbarIndex}`);
+        this.rearrangeMenu(this.$root.selectionDrag, this.$root.dragbarList, this.$root.dragbarIndex);
+        Event.$emit('clearDragStatus');
+      } else {
+        console.log(`Can't drop an item into or below itself`)
+      }
+    },
+    rearrangeMenu(item, list, index) {
+      
+    },
+    moveMenuItem(array1, array2, oldIndex, newIndex) {
+      if (array1 == array2) {
+        if (newIndex >= array.length)
+          newIndex = array.length - 1;
+        array.splice(newIndex, 0, array.splice(oldIndex, 1)[0]);
+        return array;
+      } else {
+        console.log(`Will likely break moving from different arrays`)
+      }
+    },
+    findDragBarInMenu(list, dragbar) {
+      for (let i = 0; i < list.length; i++) {
+        const item = list[i];
+        if (item.dragbar == dragbar) {
+          this.$root.dragbarIndex = i;
+          this.$root.dragbarList = list;
+          return item;
+        } else {
+          if ((item.children.length) && (item.open)) {
+            this.findDragBarInMenu(item.children, dragbar);
+          }
+        }
+      }
+    },
     navigatorControl(msg) {
       this.updateMenuList();
       if ((this.$root.addToSelection) && (/down/i.test(msg)))
@@ -305,7 +362,10 @@ Vue.component('sandbox', {
         return i;
       }
     },
-    updateMenuList() { this.menuList = document.querySelectorAll('.menu-wrap'); },
+    updateMenuList() {
+      this.menuList = document.querySelectorAll('.menu-wrap'); 
+      this.dragbarList = document.querySelectorAll('.menu-dragbar');
+    },
     checkSelection() {
       this.getSelection();
       Event.$emit(`updateAnno`, `Clicked on ${this.$root.selectionTarget.name}`);
@@ -390,28 +450,124 @@ Vue.component('menu-item', {
   },
   template: `
     <li class="menu-bounds">
-      <div class="menu-wrap" :style="getMenuStyle()" @click="onSelection">
+      <div 
+        class="menu-wrap" 
+        :style="getMenuStyle()" 
+        @click="onSelection"
+        draggable="true" 
+        @dragstart="startDrag"
+        @dragend="stopDrag"
+        @drop="dropOnParent"
+        @dragover="dragOverParent"
+        @dragexit="dragExitParent"
+        @dragenter="dragEnterParent"
+        @mouseleave="checkMouseLeave"
+        @mouseenter="checkMouseEnter">
         <menu-tab v-for="(tab,key) in depth" :key="key" />
         <div @click="toggleOpen">
           <toggle-icon :model="model" />
         </div>
         <div class="menu-item-label">{{model.name}}</div>
       </div>
+      <div 
+        class="menu-dragbar" 
+        @dragover="dragOverSibling"
+        @dragenter="dragEnterParent"
+        @drop="dropOnSibling"
+        :style="getDragbarStyle()"></div>
       <menu-item-children v-if="model.open && model.children.length" :list="model.children" />
     </li>
   `,
   data() {
     return {
       depth: [],
+      isParentDrop: false,
+      isSiblingDrop: false,
     }
   },
-  computed: { hasChildren: function () { return (/group|layer/i.test(this.model.type)) ? (this.model.children.length) ? true : false : false; }, },
+  computed: {
+    hasChildren: function () {
+      return (/group|layer/i.test(this.model.type)) ? (this.model.children.length) ? true : false : false; 
+    },
+    isDragOriginal: function () {
+      if (this.model == this.$root.selectionDrag)
+        return true;
+      else
+        return false;
+    }
+  },
   mounted() {
     this.buildDepth();
     this.model.elt = this.$el.children[0];
+    this.model.dragbar = this.$el.children[1];
     Event.$on('clearSelection', this.clearSelection);
+    Event.$on('clearDragStatus', this.clearDragStatus);
   },
   methods: {
+    clearDragStatus() {
+      // if (this.$root.selectionDrag !== this.model) {
+        // console.log(`Clearing ${this.model.name}`);
+        this.isParentDrop = false;
+        this.isSiblingDrop = false;
+      // }
+    },
+    dragExitParent() {
+      // console.log(`Now drag-exiting ${this.model.name}`);
+    },
+    dragEnterParent() {
+      // console.log(`Now drag-entering ${this.model.name}`);
+      Event.$emit('clearDragStatus');
+    },
+    checkMouseEnter() {
+      // console.log(`Now mouse-entering ${this.model.name}`);
+    },
+    checkMouseLeave() {
+      // console.log(`Now mouse-leaving ${this.model.name}`);
+      this.isSiblingDrop = false;
+      this.isParentDrop = false;
+    },
+    stopDrag(evt)  {
+      console.log(`Stopping drag on ${this.model.name}`);
+      this.$root.isDragging = false;
+      Event.$emit('checkDragTarget');
+    },
+    startDrag(evt) {
+    console.log(`Starting drag on ${this.model.name}`);
+    this.$root.isDragging = true;
+    this.$root.selectionDrag = this.model;
+    // Add the target element's id to the data transfer object
+    // ev.dataTransfer.setData("text/plain", evt.target.id);
+    },
+    dragOverParent(evt) {
+      evt.preventDefault();
+      this.$root.selectionParentDrag = this.model;
+      this.$root.dragAsSibling = false;
+      this.$root.dragAsParent = true;
+      this.isSiblingDrop = false;
+      this.isParentDrop = true;
+    },
+    dragOverSibling(evt) {
+      evt.preventDefault();
+      this.$root.selectionParentDrag = this.model;
+      this.$root.dragAsSibling = true;
+      this.$root.dragAsParent = false;
+      this.isSiblingDrop = true;
+      this.isParentDrop = false;
+    },
+    dropOnParent() {
+      this.$root.isDragging = false;
+      Event.$emit('dropParent');
+    },
+    dropOnSibling() {
+      this.$root.isDragging = false;
+      Event.$emit('dropSibling');
+    },
+    getDragbarStyle() {
+      if (this.isSiblingDrop)
+        return `border: 2px solid ${this.$root.getCSS('color-selection')}`;
+      else
+        return `border: 2px solid transparent;`
+    },
     clearSelection() { this.model.selected = false; },
     onSelection(e) {
       // console.log(e);
@@ -423,8 +579,8 @@ Vue.component('menu-item', {
       Event.$emit('checkSelection');
     },
     getMenuStyle() {
-      if (this.model.selected)
-        return `border: 2px solid ${this.$root.getCSS('color-blue-500')}`;
+      if ((this.model.selected) || (this.isParentDrop))
+        return `border: 2px solid ${this.$root.getCSS('color-selection')}`;
       else
         return `border: 2px solid transparent;`
     },
@@ -443,6 +599,8 @@ Vue.component('menu-item', {
     },
   }
 })
+
+
 
 Vue.component('menu-item-children', {
   props: {
@@ -497,9 +655,16 @@ var app = new Vue({
   el: '#app',
   data: {
     isAddToSelection: false,
+    isDragging: false,
     selectionTarget: {},
     selectionParent: {},
     selectionList: [],
+    selectionDrag: {},
+    selectionParentDrag: {},
+    dragAsSibling: false,
+    dragAsParent: false,
+    dragbarIndex: 0,
+    dragbarList: [],
     annotation: 'Render menu',
   },
   mounted() {
@@ -516,7 +681,7 @@ var app = new Vue({
       for (let i = this.selectionList.length; i <= 0; i--) {
         console.log(i)
         const selected = this.selectionList[i];
-        if (selected.elt === item.elt)
+        if (selected.elt == item.elt)
           err = i;
       }
       if (err < 0) {
